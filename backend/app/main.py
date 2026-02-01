@@ -1,10 +1,41 @@
 """FastAPI application entry point."""
 
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import health
 from app.core.config import settings
+from app.db.mongodb import mongodb_client
+from app.db.init_db import init_collections
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Application lifespan handler for startup and shutdown events.
+
+    Args:
+        app: FastAPI application instance.
+
+    Yields:
+        None after startup, cleanup after shutdown.
+    """
+    # Startup: Initialize database and create indexes
+    print(f"🚀 Starting {settings.app_name} v{settings.app_version}")
+    print(f"📦 Environment: {settings.environment}")
+    print(f"🗄️  Connecting to database: {settings.mongodb_database}")
+
+    db = await mongodb_client.get_database()
+    await init_collections(db)
+
+    yield
+
+    # Shutdown: Close database connection
+    await mongodb_client.close()
+    print("👋 Application shutdown complete")
+
 
 # Create FastAPI application
 app = FastAPI(
@@ -21,6 +52,7 @@ app = FastAPI(
     - Search History: Store and retrieve previous searches
     - User Authentication: Secure JWT-based authentication
     """,
+    lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",

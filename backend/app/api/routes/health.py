@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.core.config import settings
+from app.db.mongodb import mongodb_client
 
 router = APIRouter(prefix="/health", tags=["Health"])
 
@@ -19,13 +20,16 @@ async def health_check() -> dict[str, str]:
 
 @router.get("/detailed")
 async def detailed_health_check() -> dict[str, str | bool]:
-    """Detailed health check with application info.
+    """Detailed health check including database connectivity.
 
     Returns:
-        Detailed health status with version and environment.
+        Detailed health status with database connection status.
     """
+    db_healthy = await mongodb_client.ping()
+
     return {
-        "status": "healthy",
+        "status": "healthy" if db_healthy else "degraded",
+        "database": "connected" if db_healthy else "disconnected",
         "version": settings.app_version,
         "environment": settings.environment,
     }
