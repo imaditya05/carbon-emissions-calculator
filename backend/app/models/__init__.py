@@ -21,6 +21,13 @@ from app.models.route import (
     RouteRequest,
     RouteResponse,
 )
+from app.models.search import (
+    PaginationMeta,
+    SearchCreate,
+    SearchFilters,
+    SearchListResponse,
+    SearchResponse,
+)
 
 __all__ = [
     # User models
@@ -41,4 +48,10 @@ __all__ = [
     "RouteInfo",
     "RouteRequest",
     "RouteResponse",
+    # Search models
+    "PaginationMeta",
+    "SearchCreate",
+    "SearchFilters",
+    "SearchListResponse",
+    "SearchResponse",
 ]
