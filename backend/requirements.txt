@@ -10,6 +10,9 @@ pymongo==4.10.1
 PyJWT==2.10.1
 pwdlib[argon2]==0.2.1
 
+# HTTP Client for external APIs
+httpx==0.28.1
+
 # Validation
 pydantic==2.10.4
 pydantic-settings==2.7.1

@@ -15,6 +15,12 @@ from app.models.emission import (
     EmissionResult,
     TransportMode,
 )
+from app.models.route import (
+    Coordinates,
+    RouteInfo,
+    RouteRequest,
+    RouteResponse,
+)
 
 __all__ = [
     # User models
@@ -30,4 +36,9 @@ __all__ = [
     "EmissionFactors",
     "EmissionResult",
     "TransportMode",
+    # Route models
+    "Coordinates",
+    "RouteInfo",
+    "RouteRequest",
+    "RouteResponse",
 ]
