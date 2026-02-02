@@ -6,7 +6,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, health
+from app.api.routes import auth, emissions, health
 from app.core.config import settings
 from app.db.mongodb import mongodb_client
 from app.db.init_db import init_collections
@@ -70,6 +70,7 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(emissions.router, prefix="/api/v1")
 
 
 @app.get("/", tags=["Root"])
