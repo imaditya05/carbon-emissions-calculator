@@ -1,7 +1,7 @@
 """Search history service for storing and retrieving user searches."""
 
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from bson import ObjectId
@@ -67,7 +67,7 @@ class SearchService:
             "shortest_route": shortest,
             "efficient_route": efficient,
             "mode_comparison": [mc.model_dump() for mc in search.mode_comparison],
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
         }
 
     def _deserialize_search(self, doc: dict[str, Any]) -> SearchResponse:
