@@ -45,7 +45,18 @@ class SearchService:
         return self._collection
 
     def _serialize_search(self, search: SearchCreate, user_id: str) -> dict[str, Any]:
-        """Serialize a search for database insertion."""
+        """Serialize a search for database insertion.
+        
+        Note: We exclude geometry from storage as it's large and not needed
+        for search history display. Routes can be recomputed if needed.
+        """
+        # Create route dicts without geometry to save storage and improve query speed
+        shortest = search.shortest_route.model_dump()
+        shortest["geometry"] = []  # Don't store large geometry arrays
+        
+        efficient = search.efficient_route.model_dump()
+        efficient["geometry"] = []  # Don't store large geometry arrays
+        
         return {
             "user_id": user_id,
             "origin_name": search.origin_name,
@@ -53,8 +64,8 @@ class SearchService:
             "destination_name": search.destination_name,
             "destination_coordinates": search.destination_coordinates.model_dump(),
             "weight_kg": search.weight_kg,
-            "shortest_route": search.shortest_route.model_dump(),
-            "efficient_route": search.efficient_route.model_dump(),
+            "shortest_route": shortest,
+            "efficient_route": efficient,
             "mode_comparison": [mc.model_dump() for mc in search.mode_comparison],
             "created_at": datetime.utcnow(),
         }
@@ -66,6 +77,15 @@ class SearchService:
         if "mode_comparison" in doc:
             mode_comparison = [ModeComparison(**mc) for mc in doc["mode_comparison"]]
 
+        # Ensure geometry exists (might be excluded by projection)
+        shortest_data = doc["shortest_route"]
+        if "geometry" not in shortest_data:
+            shortest_data["geometry"] = []
+            
+        efficient_data = doc["efficient_route"]
+        if "geometry" not in efficient_data:
+            efficient_data["geometry"] = []
+
         return SearchResponse(
             id=str(doc["_id"]),
             origin_name=doc["origin_name"],
@@ -73,8 +93,8 @@ class SearchService:
             destination_name=doc["destination_name"],
             destination_coordinates=Coordinates(**doc["destination_coordinates"]),
             weight_kg=doc["weight_kg"],
-            shortest_route=RouteInfo(**doc["shortest_route"]),
-            efficient_route=RouteInfo(**doc["efficient_route"]),
+            shortest_route=RouteInfo(**shortest_data),
+            efficient_route=RouteInfo(**efficient_data),
             mode_comparison=mode_comparison,
             created_at=doc["created_at"],
         )
@@ -152,8 +172,14 @@ class SearchService:
         skip = (page - 1) * page_size
 
         # Fetch documents with pagination
+        # Use projection to exclude large geometry fields for faster queries
+        projection = {
+            "shortest_route.geometry": 0,
+            "efficient_route.geometry": 0,
+        }
+        
         cursor = (
-            collection.find(query)
+            collection.find(query, projection)
             .sort("created_at", -1)
             .skip(skip)
             .limit(page_size)
