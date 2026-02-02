@@ -17,9 +17,13 @@ from app.models.emission import (
 )
 from app.models.route import (
     Coordinates,
+    ModeComparison,
+    MultiModalRoute,
     RouteInfo,
     RouteRequest,
     RouteResponse,
+    RouteSegment,
+    Waypoint,
 )
 from app.models.search import (
     PaginationMeta,
@@ -45,9 +49,13 @@ __all__ = [
     "TransportMode",
     # Route models
     "Coordinates",
+    "ModeComparison",
+    "MultiModalRoute",
     "RouteInfo",
     "RouteRequest",
     "RouteResponse",
+    "RouteSegment",
+    "Waypoint",
     # Search models
     "PaginationMeta",
     "SearchCreate",

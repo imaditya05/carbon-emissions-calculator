@@ -6,7 +6,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.emission import TransportMode
-from app.models.route import Coordinates, RouteInfo
+from app.models.route import Coordinates, RouteInfo, ModeComparison
 
 
 class SearchBase(BaseModel):
@@ -17,7 +17,6 @@ class SearchBase(BaseModel):
     destination_name: str
     destination_coordinates: Coordinates
     weight_kg: Annotated[float, Field(gt=0)]
-    transport_mode: TransportMode
 
 
 class SearchCreate(SearchBase):
@@ -25,6 +24,7 @@ class SearchCreate(SearchBase):
 
     shortest_route: RouteInfo
     efficient_route: RouteInfo
+    mode_comparison: list[ModeComparison] = Field(default_factory=list)
 
 
 class SearchInDB(SearchBase):
@@ -34,6 +34,7 @@ class SearchInDB(SearchBase):
     user_id: str
     shortest_route: RouteInfo
     efficient_route: RouteInfo
+    mode_comparison: list[ModeComparison] = Field(default_factory=list)
     created_at: datetime
 
     model_config = ConfigDict(
@@ -47,21 +48,23 @@ class SearchInDB(SearchBase):
                 "destination_name": "Los Angeles, CA",
                 "destination_coordinates": {"latitude": 34.0522, "longitude": -118.2437},
                 "weight_kg": 5000.0,
-                "transport_mode": "land",
                 "shortest_route": {
                     "distance_km": 3936.5,
                     "duration_hours": 39.4,
                     "geometry": [],
                     "emission_kg_co2": 1220.33,
                     "route_type": "shortest",
+                    "transport_mode": "land",
                 },
                 "efficient_route": {
-                    "distance_km": 4100.0,
-                    "duration_hours": 41.0,
+                    "distance_km": 9500.0,
+                    "duration_hours": 316.7,
                     "geometry": [],
-                    "emission_kg_co2": 1195.0,
+                    "emission_kg_co2": 475.0,
                     "route_type": "efficient",
+                    "transport_mode": "sea",
                 },
+                "mode_comparison": [],
                 "created_at": "2024-01-15T10:30:00Z",
             }
         },
@@ -74,6 +77,7 @@ class SearchResponse(SearchBase):
     id: str
     shortest_route: RouteInfo
     efficient_route: RouteInfo
+    mode_comparison: list[ModeComparison] = Field(default_factory=list)
     created_at: datetime
 
     model_config = ConfigDict(
@@ -85,21 +89,23 @@ class SearchResponse(SearchBase):
                 "destination_name": "Los Angeles, CA",
                 "destination_coordinates": {"latitude": 34.0522, "longitude": -118.2437},
                 "weight_kg": 5000.0,
-                "transport_mode": "land",
                 "shortest_route": {
                     "distance_km": 3936.5,
                     "duration_hours": 39.4,
                     "geometry": [],
                     "emission_kg_co2": 1220.33,
                     "route_type": "shortest",
+                    "transport_mode": "land",
                 },
                 "efficient_route": {
-                    "distance_km": 4100.0,
-                    "duration_hours": 41.0,
+                    "distance_km": 9500.0,
+                    "duration_hours": 316.7,
                     "geometry": [],
-                    "emission_kg_co2": 1195.0,
+                    "emission_kg_co2": 475.0,
                     "route_type": "efficient",
+                    "transport_mode": "sea",
                 },
+                "mode_comparison": [],
                 "created_at": "2024-01-15T10:30:00Z",
             }
         },
@@ -134,21 +140,23 @@ class SearchListResponse(BaseModel):
                         "destination_name": "Los Angeles, CA",
                         "destination_coordinates": {"latitude": 34.0522, "longitude": -118.2437},
                         "weight_kg": 5000.0,
-                        "transport_mode": "land",
                         "shortest_route": {
                             "distance_km": 3936.5,
                             "duration_hours": 39.4,
                             "geometry": [],
                             "emission_kg_co2": 1220.33,
                             "route_type": "shortest",
+                            "transport_mode": "land",
                         },
                         "efficient_route": {
-                            "distance_km": 4100.0,
-                            "duration_hours": 41.0,
+                            "distance_km": 9500.0,
+                            "duration_hours": 316.7,
                             "geometry": [],
-                            "emission_kg_co2": 1195.0,
+                            "emission_kg_co2": 475.0,
                             "route_type": "efficient",
+                            "transport_mode": "sea",
                         },
+                        "mode_comparison": [],
                         "created_at": "2024-01-15T10:30:00Z",
                     }
                 ],
@@ -168,8 +176,11 @@ class SearchListResponse(BaseModel):
 class SearchFilters(BaseModel):
     """Query parameters for filtering searches."""
 
-    transport_mode: TransportMode | None = Field(
-        default=None, description="Filter by transport mode"
+    shortest_mode: TransportMode | None = Field(
+        default=None, description="Filter by shortest route transport mode"
+    )
+    efficient_mode: TransportMode | None = Field(
+        default=None, description="Filter by efficient route transport mode"
     )
     origin_name: str | None = Field(
         default=None, description="Filter by origin name (partial match)"

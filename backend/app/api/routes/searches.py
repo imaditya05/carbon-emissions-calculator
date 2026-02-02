@@ -8,14 +8,12 @@ from fastapi import APIRouter, HTTPException, Query, status
 from app.core.dependencies import CurrentUser
 from app.models.emission import TransportMode
 from app.models.route import RouteRequest, RouteResponse
-from app.models.search import SearchCreate, SearchListResponse, SearchResponse
+from app.models.search import SearchCreate, SearchFilters, SearchListResponse, SearchResponse
 from app.services.route_service import RouteService, RouteServiceError
 from app.services.search_service import SearchNotFoundError, SearchService
-from app.models.search import SearchFilters
 
 router = APIRouter(prefix="/searches", tags=["Search History"])
 
-# Service instances
 search_service = SearchService()
 route_service = RouteService()
 
@@ -26,51 +24,50 @@ route_service = RouteService()
     status_code=status.HTTP_201_CREATED,
     summary="Compute routes and save to search history",
     description="""
-    Computes routes between origin and destination, calculates emissions,
-    and saves the search to the user's history.
-
-    This is the main endpoint for the calculator - it combines route computation
-    with search history storage in a single operation.
+    Computes multi-modal routes between origin and destination,
+    calculates emissions, and saves the search to history.
     """,
 )
 async def create_search(
     request: RouteRequest,
     current_user: CurrentUser,
 ) -> RouteResponse:
-    """Create a new search with route computation."""
+    """Create a new search with multi-modal route computation."""
     try:
-        # Compute routes
-        shortest_route, efficient_route = await route_service.compute_routes(
-            origin=request.origin_coordinates,
-            destination=request.destination_coordinates,
-            weight_kg=request.weight_kg,
-            transport_mode=request.transport_mode,
+        shortest_route, efficient_route, mode_comparison, detailed_routes = (
+            await route_service.compute_all_routes(
+                origin=request.origin_coordinates,
+                destination=request.destination_coordinates,
+                weight_kg=request.weight_kg,
+                origin_name=request.origin_name,
+                destination_name=request.destination_name,
+            )
         )
 
-        # Save to search history
+        # Save to search history (without detailed_routes to keep storage minimal)
         search_data = SearchCreate(
             origin_name=request.origin_name,
             origin_coordinates=request.origin_coordinates,
             destination_name=request.destination_name,
             destination_coordinates=request.destination_coordinates,
             weight_kg=request.weight_kg,
-            transport_mode=request.transport_mode,
             shortest_route=shortest_route,
             efficient_route=efficient_route,
+            mode_comparison=mode_comparison,
         )
 
         await search_service.create_search(search_data, current_user.id)
 
-        # Return route response
         return RouteResponse(
             origin_name=request.origin_name,
             origin_coordinates=request.origin_coordinates,
             destination_name=request.destination_name,
             destination_coordinates=request.destination_coordinates,
             weight_kg=request.weight_kg,
-            transport_mode=request.transport_mode,
             shortest_route=shortest_route,
             efficient_route=efficient_route,
+            mode_comparison=mode_comparison,
+            detailed_routes=detailed_routes,
         )
 
     except RouteServiceError as e:
@@ -84,47 +81,22 @@ async def create_search(
     "/",
     response_model=SearchListResponse,
     summary="Get search history",
-    description="""
-    Retrieve the authenticated user's search history with optional filters
-    and pagination.
-
-    **Filters:**
-    - `transport_mode`: Filter by land, sea, or air
-    - `origin_name`: Partial match on origin name
-    - `destination_name`: Partial match on destination name
-    - `date_from`: Searches after this date
-    - `date_to`: Searches before this date
-
-    **Pagination:**
-    - Default page size is 10
-    - Results are sorted by date (most recent first)
-    """,
 )
 async def get_searches(
     current_user: CurrentUser,
-    page: Annotated[int, Query(ge=1, description="Page number")] = 1,
-    page_size: Annotated[
-        int, Query(ge=1, le=100, description="Items per page")
-    ] = 10,
-    transport_mode: Annotated[
-        TransportMode | None, Query(description="Filter by transport mode")
-    ] = None,
-    origin_name: Annotated[
-        str | None, Query(description="Filter by origin name (partial match)")
-    ] = None,
-    destination_name: Annotated[
-        str | None, Query(description="Filter by destination name (partial match)")
-    ] = None,
-    date_from: Annotated[
-        datetime | None, Query(description="Filter searches from this date")
-    ] = None,
-    date_to: Annotated[
-        datetime | None, Query(description="Filter searches until this date")
-    ] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 10,
+    shortest_mode: Annotated[TransportMode | None, Query()] = None,
+    efficient_mode: Annotated[TransportMode | None, Query()] = None,
+    origin_name: Annotated[str | None, Query()] = None,
+    destination_name: Annotated[str | None, Query()] = None,
+    date_from: Annotated[datetime | None, Query()] = None,
+    date_to: Annotated[datetime | None, Query()] = None,
 ) -> SearchListResponse:
     """Get paginated search history with filters."""
     filters = SearchFilters(
-        transport_mode=transport_mode,
+        shortest_mode=shortest_mode,
+        efficient_mode=efficient_mode,
         origin_name=origin_name,
         destination_name=destination_name,
         date_from=date_from,
@@ -139,55 +111,26 @@ async def get_searches(
     )
 
 
-@router.get(
-    "/{search_id}",
-    response_model=SearchResponse,
-    summary="Get a specific search",
-    description="Retrieve details of a specific search by ID.",
-)
-async def get_search(
-    search_id: str,
-    current_user: CurrentUser,
-) -> SearchResponse:
+@router.get("/{search_id}", response_model=SearchResponse)
+async def get_search(search_id: str, current_user: CurrentUser) -> SearchResponse:
     """Get a specific search by ID."""
     try:
         return await search_service.get_search_by_id(search_id, current_user.id)
     except SearchNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.delete(
-    "/{search_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete a search",
-    description="Delete a specific search from history.",
-)
-async def delete_search(
-    search_id: str,
-    current_user: CurrentUser,
-) -> None:
+@router.delete("/{search_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_search(search_id: str, current_user: CurrentUser) -> None:
     """Delete a specific search."""
     try:
         await search_service.delete_search(search_id, current_user.id)
     except SearchNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.delete(
-    "/",
-    status_code=status.HTTP_200_OK,
-    summary="Delete all search history",
-    description="Delete all searches from the user's history.",
-)
-async def delete_all_searches(
-    current_user: CurrentUser,
-) -> dict[str, int]:
+@router.delete("/", status_code=status.HTTP_200_OK)
+async def delete_all_searches(current_user: CurrentUser) -> dict[str, int]:
     """Delete all user searches."""
     count = await search_service.delete_all_user_searches(current_user.id)
     return {"deleted_count": count}
