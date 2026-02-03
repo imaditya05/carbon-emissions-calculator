@@ -38,8 +38,14 @@ class Settings(BaseSettings):
     # Mapbox API for routing and geocoding
     mapbox_access_token: str = ""
 
-    # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    # CORS - accepts comma-separated origins in CORS_ORIGINS env var
+    # For Cloud Run, set to your frontend URL (e.g., https://carbon-frontend-xxx.run.app)
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
 
 
 @lru_cache

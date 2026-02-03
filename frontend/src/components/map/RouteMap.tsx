@@ -3,7 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Map, Plane, Ship, Truck } from 'lucide-react';
 import { getMapboxToken, getBounds } from '../../lib/mapbox';
-import type { RouteResponse, MultiModalRoute, TransportMode } from '../../types';
+import type { RouteResponse, TransportMode } from '../../types';
 
 interface RouteMapProps {
   routeResult: RouteResponse | null;

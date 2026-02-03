@@ -59,9 +59,18 @@ app = FastAPI(
 )
 
 # Configure CORS
+# Hardcode allowed origins for production reliability
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://carbon-frontend-qkbbr3ntyq-uc.a.run.app",
+    "https://carbon-frontend-1045695454259.us-central1.run.app",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
